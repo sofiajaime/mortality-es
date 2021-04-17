@@ -1,32 +1,42 @@
 import pandas as pd
-pd.options.display.max_columns = None
-import numpy as np
-from tqdm import tqdm
-import utils
+
+# STEP 1: 
+# In order to solve the memory issues of joining all the years in one DataFrame,
+# Save from 1759 to 2000 first and then from 2001 to 2019.
 
 COUNTRY = 'ES'
 INIT_YEAR = 1975
-LAST_YEAR = 2019
+LAST_YEAR = 2000
 
-# Create dataframe object
-df = pd.DataFrame(columns=['PROVI', 'MUNI', 'MESN', 'ANON', 'SEX', 'MESDEF', 'ANODEF', 'NACION', 'PAISNAC', 'LUGNAC', 'PROVNAC', 'MUNNAC', 'PAISNACX', 'LUGRES', 'PROVRES', 'MUNRES', 'PAISRESX', 'ECIV', 'OCU', 'ANOSCUM', 'MESCUM', 'DIASCUM', 'TAMAMUNI', 'TAMAMUNN', 'TAMAMUNR', 'TAMAPAISN', 'TAMAPAISR', 'TAMAPAISNACION', 'CBAS', 'CRED', 'CPER', 'CINF'])
-
-# Remember to run download_data.sh to download the data
-years = range(INIT_YEAR, LAST_YEAR)
-# Read the files line by line
-for year in years:
-    print(f"Processing year {year}")
-    if year < 1999:
-        parse_fn = utils.parse_line_less_1998
-    elif year < 2009:
-        parse_fn = utils.parse_line_less_2008
+joined = None
+for year in range(INIT_YEAR, LAST_YEAR+1):
+    print(f"Loading year {year}")
+    if joined is None:
+        joined = pd.read_stata(f"output/mort_{COUNTRY}_{year}.dta", convert_categoricals=False)
     else:
-        parse_fn = utils.parse_line_less_2019       
+        joined = pd.concat([joined, pd.read_stata(f"output/mort_{COUNTRY}_{year}.dta", convert_categoricals=False)])
 
-    with open(f'data/DEF{COUNTRY}{year}') as file:
-        lines = file.readlines()
-    
-    for line in tqdm(lines[:1]):
-        df.loc[len(df)] = parse_fn(line)
+print(joined.shape)
+print(joined.head())
 
-df.to_stata(f"mort_{COUNTRY}_{INIT_YEAR}_{LAST_YEAR}.dta", write_index = False)
+print(f"Saving output to file output/mort_{COUNTRY}_{INIT_YEAR}_{LAST_YEAR}.dta")
+joined.to_stata(f"output/mort_{COUNTRY}_{INIT_YEAR}_{LAST_YEAR}.dta", write_index = False)
+
+# STEP 2:
+# Join the 2 generated dataframes
+
+# COUNTRY = 'ES'
+
+# joined = None
+
+# print(f"Loading output/mort_{COUNTRY}_1975_2000.dta")
+# joined = pd.read_stata(f"output/mort_{COUNTRY}_1975_2000.dta", convert_categoricals=False)
+
+# print(f"Loading output/mort_{COUNTRY}_2001_2019.dta")
+# joined = pd.concat([joined, pd.read_stata(f"output/mort_{COUNTRY}_2001_2019.dta", convert_categoricals=False)])
+
+# print(joined.shape)
+# print(joined.head())
+
+# print(f"Saving output to file output/mort_{COUNTRY}_1975_2019.dta")
+# joined.to_stata(f"output/mort_{COUNTRY}_1975_2019.dta", write_index = False)
