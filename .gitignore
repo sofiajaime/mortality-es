@@ -1,0 +1,4 @@
+scripts/data
+__pycache__
+.DS_Store
+scripts/mort_ES_1975_2019.dta
