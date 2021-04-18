@@ -1,42 +1,47 @@
-import pandas as pd
+from pyspark import SparkContext
+from pyspark import SparkConf
+from pyspark.sql import SparkSession
 
-# STEP 1: 
-# In order to solve the memory issues of joining all the years in one DataFrame,
-# Save from 1759 to 2000 first and then from 2001 to 2019.
+# create Spark context with Spark configuration
+conf = SparkConf().setAppName("mortality-es")
+sc = SparkContext(conf=conf)
+spark = SparkSession(sc)
+
+import utils
+import os
+import pandas as pd
 
 COUNTRY = 'ES'
 INIT_YEAR = 1975
-LAST_YEAR = 2000
+LAST_YEAR = 2019
 
-joined = None
+# Create the output folder if it does not exist
+if not os.path.exists("output"):
+    os.mkdir("output")
+
+# Write (erase any existing contents) the headers into the file
+columns = ['PROVI', 'MUNI', 'MESN', 'ANON', 'SEX', 'MESDEF', 'ANODEF', 'NACION', 'PAISNAC', 'LUGNAC', 'PROVNAC', 'MUNNAC', 'PAISNACX', 'LUGRES', 'PROVRES', 'MUNRES', 'PAISRESX', 'ECIV', 'OCU', 'ANOSCUM', 'MESCUM', 'DIASCUM', 'TAMAMUNI', 'TAMAMUNN', 'TAMAMUNR', 'TAMAPAISN', 'TAMAPAISR', 'TAMAPAISNACION', 'CBAS', 'CRED', 'CPER', 'CINF']
+with open(f"output/mort_{COUNTRY}_{INIT_YEAR}_{LAST_YEAR}.csv", "w") as f:
+    f.write(','.join(columns) + '\n')
+
+# Remember to run download_data.sh to download the data
 for year in range(INIT_YEAR, LAST_YEAR+1):
-    print(f"Loading year {year}")
-    if joined is None:
-        joined = pd.read_stata(f"output/mort_{COUNTRY}_{year}.dta", convert_categoricals=False)
+    print(f"Processing year {year}")        
+
+    if year < 1999:
+        parse_fn = utils.parse_line_less_1998
+    elif year < 2009:
+        parse_fn = utils.parse_line_less_2008
     else:
-        joined = pd.concat([joined, pd.read_stata(f"output/mort_{COUNTRY}_{year}.dta", convert_categoricals=False)])
+        parse_fn = utils.parse_line_less_2019       
 
-print(joined.shape)
-print(joined.head())
+    # Using Spark
+    lines = sc.textFile(f'data/DEF{COUNTRY}{year}')
+    df = lines.map(parse_fn).toDF().toPandas()
+    df.to_csv(f'output/mort_{COUNTRY}_{INIT_YEAR}_{LAST_YEAR}.csv', mode='a', header=False)
 
-print(f"Saving output to file output/mort_{COUNTRY}_{INIT_YEAR}_{LAST_YEAR}.dta")
-joined.to_stata(f"output/mort_{COUNTRY}_{INIT_YEAR}_{LAST_YEAR}.dta", write_index = False)
-
-# STEP 2:
-# Join the 2 generated dataframes
-
-# COUNTRY = 'ES'
-
-# joined = None
-
-# print(f"Loading output/mort_{COUNTRY}_1975_2000.dta")
-# joined = pd.read_stata(f"output/mort_{COUNTRY}_1975_2000.dta", convert_categoricals=False)
-
-# print(f"Loading output/mort_{COUNTRY}_2001_2019.dta")
-# joined = pd.concat([joined, pd.read_stata(f"output/mort_{COUNTRY}_2001_2019.dta", convert_categoricals=False)])
-
-# print(joined.shape)
-# print(joined.head())
-
-# print(f"Saving output to file output/mort_{COUNTRY}_1975_2019.dta")
-# joined.to_stata(f"output/mort_{COUNTRY}_1975_2019.dta", write_index = False)
+    # Using pandas
+    # df = pd.read_csv(f'data/DEF{COUNTRY}{year}', names=["raw"])
+    # df = df.merge(df.raw.apply(lambda s: pd.Series({columns[i]:el for i,el in enumerate(parse_fn(s))})), left_index=True, right_index=True)
+    # df = df.drop(['raw'], axis=1)
+    # df.to_csv(f'output/mort_{COUNTRY}_{INIT_YEAR}_{LAST_YEAR}.csv', mode='a', header=False)
