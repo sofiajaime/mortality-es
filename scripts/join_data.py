@@ -20,7 +20,10 @@ if not os.path.exists("output"):
     os.mkdir("output")
 
 # Write (erase any existing contents) the headers into the file
-columns = ['PROVI', 'MUNI', 'MESN', 'ANON', 'SEX', 'MESDEF', 'ANODEF', 'NACION', 'PAISNAC', 'LUGNAC', 'PROVNAC', 'MUNNAC', 'PAISNACX', 'LUGRES', 'PROVRES', 'MUNRES', 'PAISRESX', 'ECIV', 'OCU', 'ANOSCUM', 'MESCUM', 'DIASCUM', 'TAMAMUNI', 'TAMAMUNN', 'TAMAMUNR', 'TAMAPAISN', 'TAMAPAISR', 'TAMAPAISNACION', 'CBAS', 'CRED', 'CPER', 'CINF']
+columns = ['PROVI', 'MUNI', 'MESN', 'ANON', 'SEX', 'MESDEF', 'ANODEF', 'NACION', 'PAISNAC', \
+    'LUGNAC', 'PROVNAC', 'MUNNAC', 'PAISNACX', 'LUGRES', 'PROVRES', 'MUNRES', 'PAISRESX', 'ECIV', \
+    'OCU', 'ANOSCUM', 'MESCUM', 'DIASCUM', 'TAMAMUNI', 'TAMAMUNN', 'TAMAMUNR', 'TAMAPAISN', \
+    'TAMAPAISR', 'TAMAPAISNACION', 'CBAS', 'CRED', 'CPER', 'CINF','NEDU','LUGDEF','RELA']
 with open(f"output/mort_{COUNTRY}_{INIT_YEAR}_{LAST_YEAR}.csv", "w") as f:
     f.write(','.join(columns) + '\n')
 
@@ -32,16 +35,12 @@ for year in range(INIT_YEAR, LAST_YEAR+1):
         parse_fn = utils.parse_line_less_1998
     elif year < 2009:
         parse_fn = utils.parse_line_less_2008
+    elif year < 2015:
+        parse_fn = utils.parse_line_less_2015    
     else:
         parse_fn = utils.parse_line_less_2019       
 
     # Using Spark
     lines = sc.textFile(f'data/DEF{COUNTRY}{year}')
     df = lines.map(parse_fn).toDF().toPandas()
-    df.to_csv(f'output/mort_{COUNTRY}_{INIT_YEAR}_{LAST_YEAR}.csv', mode='a', header=False)
-
-    # Using pandas
-    # df = pd.read_csv(f'data/DEF{COUNTRY}{year}', names=["raw"])
-    # df = df.merge(df.raw.apply(lambda s: pd.Series({columns[i]:el for i,el in enumerate(parse_fn(s))})), left_index=True, right_index=True)
-    # df = df.drop(['raw'], axis=1)
-    # df.to_csv(f'output/mort_{COUNTRY}_{INIT_YEAR}_{LAST_YEAR}.csv', mode='a', header=False)
+    df.to_csv(f'output/mort_{COUNTRY}_{INIT_YEAR}_{LAST_YEAR}.csv', mode='a', header=False, index=False)
