@@ -35,7 +35,7 @@ for year in range(INIT_YEAR, LAST_YEAR+1):
         parse_fn = utils.parse_line_less_1998
     elif year < 2009:
         parse_fn = utils.parse_line_less_2008
-    elif year < 2015:
+    elif year < 2016:
         parse_fn = utils.parse_line_less_2015    
     else:
         parse_fn = utils.parse_line_less_2019       
